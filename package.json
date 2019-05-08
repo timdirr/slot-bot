@@ -1,0 +1,12 @@
+{
+  "name": "Slot Notifications",
+  "description": "Slot Notifications",
+  "version": "0.0.0",
+  "main": "botv2.js",
+  "scripts": {
+    "start": "node botv2.js"
+  },
+  "dependencies": {
+    "discord.js": "11.4.2"
+  }
+}
