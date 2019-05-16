@@ -1,55 +1,56 @@
+//----------------------------------------------------------------------------------------------
+//  required stuff in order to run the bot
+//----------------------------------------------------------------------------------------------
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const setup = require("./setup.json");
-const f = require("./functions.js");
 const fs = require('fs')
 
+//----------------------------------------------------------------------------------------------
+//  for status
+//----------------------------------------------------------------------------------------------
 var counter = 0;
-var deleteCounter = "deleteReady";
 var changer = 0;
+var deleteCounter = true;
+//----------------------------------------------------------------------------------------------
+//  for perm managing 
+//----------------------------------------------------------------------------------------------
 var user_id;
 var msg;
 var ownerRole;
 
-var green = 8313370;
-var red = 12587561;
-var blue = 767487;
-
-var text;
-var header;
-var formLink;
-var fee;
-var saveFee;
-var retail;
-var release_date;
-var resell_prediction;
-var full_droplist;
-
-var channel_id;
-var change_channel_id;
-var role_name;
-var image;
-var mention;
-var dm = "";
-
-var slot_message;
-
-var list = [];
+//----------------------------------------------------------------------------------------------
+//  colors
+//----------------------------------------------------------------------------------------------
+var green =     8313370;
+var red =       12587561;
+var blue =      767487;
+var grey =      3553599;
+//----------------------------------------------------------------------------------------------
+//  for data storage
+//----------------------------------------------------------------------------------------------
+var BMServer;
+var list = {};
+var config = {};
 var slots = [];
-var liveCounter = 0;
 
-exports.getMessage = function(){
-        return msg;
-}
+//----------------------------------------------------------------------------------------------
+//  messages
+//----------------------------------------------------------------------------------------------
+var changeMessage =             new Discord.RichEmbed().setColor(grey).setTitle(setup.change_message).setDescription(setup.change_message_2);
+var helpMessage =               new Discord.RichEmbed().setTitle(setup.help_message_1 + setup.prefix + setup.help_message_2).setColor(grey);
+var linkFailedMessage =         new Discord.RichEmbed().setColor(red).setTitle(setup.link_failed);
+var successfulChange =          new Discord.RichEmbed().setTitle(setup.successful_change).setColor(green);
+var successfulDelete =          new Discord.RichEmbed().setTitle(setup.delete).setColor(green);
+var unsuccessfulChange =        new Discord.RichEmbed().setTitle(setup.unsuccessful_change).setColor(red);
+var respondMessage =            new Discord.RichEmbed().setColor(grey).setDescription(setup.stop_info);
+var stopMessage =               new Discord.RichEmbed().setColor(red).setTitle(setup.stop_message + setup.prefix + "slot.");
+var slotSent =                  new Discord.RichEmbed().setColor(green).setTitle(setup.finished_message);
+var impossibleDeleteMSG =       new Discord.RichEmbed().setColor(grey).setTitle("No Live Slots").setDescription(setup.impossible_delete + setup.prefix + "slot.");
 
-exports.getDiscord = function(){
-        return Discord;
-}
-
-exports.getSlotMessage = function(){
-        return slot_message;
-}
-
+//----------------------------------------------------------------------------------------------
+//  slot class
+//----------------------------------------------------------------------------------------------
 class liveSlot {
         constructor(slotHeader, slotForm, slotFee) {
                 this.slotHeader = slotHeader;
@@ -58,551 +59,855 @@ class liveSlot {
         }
 }
 
-async function readSlotsFile() {
-        await fs.readFile('liveslots.txt', (err, data) => {
-                if (err) throw err;
-                data = data.toString();
-                readSlots(data);
+//----------------------------------------------------------------------------------------------
+//  sends response message
+//----------------------------------------------------------------------------------------------
+async function respond(msg, step){
+        respondMessage.setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
+        helpMessage.setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
+        impossibleDeleteMSG.setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
+        switch(step){
+                case "help":
+                        msg.channel.send(helpMessage);
+                        break;
+                case "stop":
+                        msg.channel.send(stopMessage);
+                        break;
+                case "channel":
+                        respondMessage.setTitle(setup.channel_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "role":
+                        respondMessage.setTitle(setup.role_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "channel_f":
+                        respondMessage.setTitle(setup.channel_failed).setColor(red);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "role_f":
+                        respondMessage.setTitle(setup.role_failed).setColor(red);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "header":
+                        respondMessage.setTitle(setup.header_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "form":
+                        respondMessage.setTitle(setup.form_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "fee":
+                        respondMessage.setTitle(setup.fee_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "retail":
+                        respondMessage.setTitle(setup.retail_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "date":
+                        respondMessage.setTitle(setup.date_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "resell":
+                        respondMessage.setTitle(setup.resell_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "droplist":
+                        respondMessage.setTitle(setup.droplist_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "image":
+                        respondMessage.setTitle(setup.image_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "sure":
+                        respondMessage.setTitle(setup.sure_message).setColor(grey);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "change":
+                        msg.channel.send(changeMessage);
+                        break;
+                case "sure_f":
+                        respondMessage.setTitle(setup.failed_sure).setColor(red);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "link_f":
+                        msg.channel.send(linkFailedMessage);
+                        break;
+                case "slot_msg":
+                        msg.channel.send(slot_message);
+                        break;
+                case "successful":
+                        msg.channel.send(successfulChange);
+                        break;
+                case "unsuccessful":
+                        msg.channel.send(unsuccessfulChange);
+                        break;
+                case "finished":
+                        msg.channel.send(slotSent);
+                        break;
+                case "delete":
+                        msg.channel.send(successfulDelete);
+                        break;
+                case "delete_f":
+                        respondMessage.setTitle(setup.failed_delete).setColor(red);
+                        msg.channel.send(respondMessage);
+                        break;
+                case "impossible_delete":
+                        msg.channel.send(impossibleDeleteMSG);
+                        break;
+
+        }
+}
+
+//----------------------------------------------------------------------------------------------
+//  pulls data from BotManager server
+//----------------------------------------------------------------------------------------------
+async function getData(server) {
+        //get channel with server id
+        channel = await BMServer.channels.find(n => n.name == server.id)
+        //sleep
+        await new Promise(resolve => setTimeout(resolve, 100));
+        //get last message
+        await channel.fetchMessages({limit: 1}).then(async messages => {
+                //extract last message
+                lastMessage = await messages.get(channel.lastMessageID)
+                //sleep
+                await new Promise(resolve => setTimeout(resolve, 100));
+                //get content of message
+                data = await lastMessage.content;
+                //trim ```
+                data = await data.slice(3, data.length - 3);
+                //remove zero
+                if(data == "zero")
+                        data = "";
+                //pass to save
+                await insertData(data, server);
         })
 }
 
-async function readSlots(data) {
+//----------------------------------------------------------------------------------------------
+//  inserts pulled data into list
+//----------------------------------------------------------------------------------------------
+async function insertData(data, server) {
+        //split into individual slots
         slots = data.split("%next%");
-        console.log(slots.length);
-        liveCounter = slots.length - 1;
+        //trim
         for (var i = 0; i < slots.length; ++i) {
                 slots[i] = slots[i].trim();
         }
+        //create temporary field
+        let save = [];
         for (var i = 0; i < slots.length - 1; ++i) {
+                //split each slot into data components
                 var slot = slots[i].split("##");
-                await list.push(new liveSlot(slot[0], slot[1], slot[2]));
+                //and pass components as class liveSlot
+                await save.push(new liveSlot(slot[0], slot[1], slot[2]));
         }
+        //save in according server data
+        list[server.id] = save;
 }
 
-async function sendLive(){
-        readSlotsFile();
-        let liveMessage = new Discord.RichEmbed().setColor(blue).setTitle("**Live slots**").setDescription("These are all of our currently live slots:\n_ _\n_ _").setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
-        var i;
-        if(liveCounter == 0){
-                liveMessage.setDescription("Unfortunatly there are no live slots at the moment!")
+//----------------------------------------------------------------------------------------------
+//  sends all the currently live slots
+//----------------------------------------------------------------------------------------------
+async function sendLive(server, time){
+        //get liveMessage
+        let liveMessage = new Discord.RichEmbed().setColor(grey).setTitle("**Live slots**").setDescription("These are all of our currently live slots:\n_ _\n_ _").setFooter(server.name + " Slot Notifications", server.iconURL);
+        let i;
+        //check if there are live slots
+        if(list[server.id].length == 0){
+                await liveMessage.setDescription("Unfortunatly there are no live slots at the moment!")
         } else {
-                for (i = 0; i <  liveCounter - 1; ++i){
-                        if(list[i].slotForm.toString().charAt(0) == '+')
-                        liveMessage.addField("\n\n" + list[i].slotHeader, "Fee: " + list[i].slotFee + "\nDm " + list[i].slotForm.slice(1) + "for more info\n_ _\n_ _");
+                //check if there is more then 1 slot (because of formating) -> add fields
+                for (i = 0; i <  list[server.id].length - 1 ; ++i){
+                        if(list[server.id][i].slotForm.toString().charAt(0) == '+')
+                                await liveMessage.addField("\n\n" + list[server.id][i].slotHeader, "Fee: " + list[server.id][i].slotFee + "\nDm " + list[server.id][i].slotForm.slice(1) + "for more info\n_ _\n_ _");
                         else
-                        liveMessage.addField("\n\n" + list[i].slotHeader, "Fee: " + list[i].slotFee + "\n[Form](" + list[i].slotForm + ")\n_ _\n_ _", false);
+                                await liveMessage.addField("\n\n" + list[server.id][i].slotHeader, "Fee: " + list[server.id][i].slotFee + "\n[Form](" + list[server.id][i].slotForm + ")\n_ _\n_ _", false);
                 }
-                if(list[i].slotForm.toString().charAt(0) == '+')
-                liveMessage.addField("\n\n" + list[i].slotHeader, "Fee: " + list[i].slotFee + "\nDm " + list[i].slotForm.slice(1) + " for more info!\n_ _\n_ _");
+                if(list[server.id][i].slotForm.toString().charAt(0) == '+')
+                        await liveMessage.addField("\n\n" + list[server.id][i].slotHeader, "Fee: " + list[server.id][i].slotFee + "\nDm " + list[server.id][i].slotForm.slice(1) + " for more info!\n_ _\n_ _");
                 else
-                liveMessage.addField("\n\n" + list[i].slotHeader, "Fee: " + list[i].slotFee + "\n[Form](" + list[i].slotForm + ")\n_ _\n_ _", false);
+                        await liveMessage.addField("\n\n" + list[server.id][i].slotHeader, "Fee: " + list[server.id][i].slotFee + "\n[Form](" + list[server.id][i].slotForm + ")\n_ _\n_ _", false);
         }
-        msg.channel.send(liveMessage);
+        return liveMessage;
 }
 
-async function saveAll(){
+//----------------------------------------------------------------------------------------------
+//  saves all live slots of a server by sending a discord messages
+//----------------------------------------------------------------------------------------------
+async function saveAll(server){
         let output = "";
-        for (var i = 0; i < liveCounter; i++){
-                if(list[i] != undefined)
-                        output = output + list[i].slotHeader + "##" + list[i].slotForm + "##" + list[i].slotFee + "%next%"; console.log("test");
+        console.log(server.name + ": " + await list[server.id].length)
+        //go through all live slots
+        for (var i = 0; i < list[server.id].length; i++){
+                //check for undefined (idk why tbh)
+                if(list[server.id][i] != undefined){
+                        output = output + list[server.id][i].slotHeader + "##" + list[server.id][i].slotForm + "##" + list[server.id][i].slotFee + "%next%";
+                }
         }
-        output = output + "\n";
-        fs.writeFile('liveslots.txt', output, (err) => {
-                if (err) throw err;
-        })
+        //if no live slots set as output as zero
+        if(list[server.id].length == 0)
+                output = "zero"
+        output = "\`\`\`" + output + "\`\`\`"
+        //send save message in according channel
+        BMServer.channels.find(n => n.name == server.id).send(output);
 }
 
-async function deleteSlot(n){
-        if(n < list.length){
-                liveCounter--;
-                await console.log(list);
-                await list.splice(n, 1);
-                await f.respond("delete");
-                deleteCounter = "deleteReady";
-                console.log(list);
+
+//----------------------------------------------------------------------------------------------
+//  deletes one of the currently live slots
+//----------------------------------------------------------------------------------------------
+async function deleteSlot(n, server){
+        //checks if passed n is valid (not too high/low)
+        if(0 < n <= list[server.id].length){
+                //cut out slot at position n
+                await list[server.id].splice(n, 1);
+                //remove deleteID
+                delete config[server.id]['deleteID'];
+                config[server.id]['deleteCounter'] = true;
+                await respond(message, "delete");
         } else
-                f.respond("delete_f")
-        saveAll();
-        readSlotsFile();
+                //invalid response
+                respond(message, "delete_f")
+        //save everything
+        saveAll(server);
+        //sleep
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        //then load everything
+        getData(server);
 }
 
-async function sendSlotMessage(clientChannel, messageChannel) {
-        if(!dm)
-                await list.push(new liveSlot(header, formLink, saveFee));
+//----------------------------------------------------------------------------------------------
+//  sends slot notification
+//----------------------------------------------------------------------------------------------
+async function sendSlotMessage(author, clientChannel, messageChannel, server) {
+
+        if(config[server]['dm'])
+                await list[server.id].push(new liveSlot(header, formLink, saveFee));
         else
-                await list.push(new liveSlot(header, "+" + `${msg.author}` , saveFee));
-        saveAll();
-        await clientChannel.send(slot_message);
-        if(role_name === "none"){
-                if(dm){ clientChannel.send(dm); }
-        } else if (role_name === "everyone"){
-                clientChannel.send(dm + " @everyone");
-        } else if (role_name === "here"){
-                clientChannel.send(dm + "@here ");
-        } else {
-                clientChannel.send(dm + ` ${role_name}`);
-        }
-        f.respond("finished");
-        counter = 0;
-        changer = 0;
-        liveCounter++;
+                await list[server.id].push(new liveSlot(header, "+" + `${author}` , saveFee));
+        saveAll(server);
+
+        await clientChannel.send(config[server.id]['slot_message']);
+        if(config[server.id]['role_name'] == "none")                     { if(config[server]['dm']){ clientChannel.send(config[server]['dm']); }            }
+        else if (config[server.id]['role_name'] == "everyone")           { clientChannel.send(config[server]['dm'] + " @everyone");                         }
+        else if (config[server.id]['role_name'] == "here")               { clientChannel.send(config[server]['dm'] + "@here ");                             }
+        else                                                             { clientChannel.send(config[server]['dm'] + ` ${role_name}`);                      }
+
+        respond(message, "finished");
+        resetSetup(server);
 }
 
-async function sendDelete(){
-        let deleteMessage = new Discord.RichEmbed().setColor(blue).setTitle("Which slot would you like to delete? Please respond with the according number.").setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
-        for (i = 1; i < list.length + 1; ++i){
+//----------------------------------------------------------------------------------------------
+//  sends message that contains all slots for deletion
+//----------------------------------------------------------------------------------------------
+async function sendDelete(server){
+        let deleteMessage = new Discord.RichEmbed().setColor(grey).setTitle("Which slot would you like to delete? Please respond with the according number.").setFooter(msg.guild.name + " Slot Notifications", msg.guild.iconURL);
+        for (i = 1; i < list[server.id].length + 1; ++i){
                 if(i == 1)
-                        deleteMessage.addField("**1. " + list[i - 1].slotHeader + "**", "_ _", false);
+                        deleteMessage.addField("**1. " + list[server.id][i - 1].slotHeader + "**", "_ _", false);
                 else
-                        deleteMessage.addField("\n_ _\n**" + i + ". " + list[i - 1].slotHeader + "**", "_ _", false);
+                        deleteMessage.addField("\n_ _\n**" + i + ". " + list[server.id][i - 1].slotHeader + "**", "_ _", false);
         }
-        msg.channel.send(deleteMessage);
+        return deleteMessage;
 }
 
+//----------------------------------------------------------------------------------------------
+//  checks if a link is valid
+//----------------------------------------------------------------------------------------------
 async function linkTest(link) {
         var link_number = 0;
         let testMessageLink = new Discord.RichEmbed().setColor(green).setTitle("link test");
         testMessageLink.setURL(link);
-        await client.channels.get("554647142808158209").send(testMessageLink).catch(err => {
+        await BMServer.channels.find(n => n.name == "link-test").send(testMessageLink).catch(err => {
                 link_number = 1;
         });
         return link_number;
 }
 
-function textSet() {
-        text = fee;
-        if (retail != "none") {text = text + retail;}
-        if (release_date != "none") {text = text + release_date;}
-        if (resell_prediction != "none") {text = text + resell_prediction;}
-        if (full_droplist != "none") {text = text + full_droplist;}
-        slot_message.setDescription(text);
+//----------------------------------------------------------------------------------------------
+//  sets description of slot message (combines all data)
+//----------------------------------------------------------------------------------------------
+function textSet(server) {
+
+        let text = config[server.id]['fee'];
+        if (config[server.id]['retail'] != "none")                { text += config[server.id]['retail'];            }
+        if (config[server.id]['release_date'] != "none")          { text += config[server.id]['release_date'];      }
+        if (config[server.id]['resell_prediction'] != "none")     { text += config[server.id]['resell_prediction']; }
+        if (config[server.id]['full_droplist'] != "none")         { text += config[server.id]['full_droplist'];     }
+
+        config[server.id]['slot_message'].setDescription(text);
 }
 
+//----------------------------------------------------------------------------------------------
+//  checks if a passed string is a number
+//----------------------------------------------------------------------------------------------
 function isPositiveInteger(s) {
         return /^\+?[1-9][\d]*$/.test(s);
 }
 
+//----------------------------------------------------------------------------------------------
+//  resets config of a server to default
+//----------------------------------------------------------------------------------------------
+async function resetSetup(server){
+        dCounter = config[server.id]['deleteCounter'];
+        if(dCounter == false)
+                dID = config[server.id]['deleteID'];
+        delete config[server.id];
+        config[server.id] = {
+                'deleteCounter': dCounter,
+                'counter' : 0,
+                'changer' : 0
+        }
+        if(dCounter == false)
+                config[server.id]['deleteID'] = dID;
+}
 
-client.on("ready", () => {
-        readSlotsFile();
-        f.start();
+//----------------------------------------------------------------------------------------------
+//  triggered when bot joins a server, creates channel in BMServer + init list/config
+//----------------------------------------------------------------------------------------------
+client.on("guildCreate", async guild => {
+        console.log("Joined a new server: " + guild.name + "\nServer Count: " + client.guilds.array().length);
+        list[guild.id] = []
+        await BMServer.createChannel(guild.id, "text");
+        serverChannel = await BMServer.channels.find(c => c.name == guild.id);
+        await serverChannel.setTopic("Server: " + guild.name)
+        await serverChannel.send("\`\`\`zero\`\`\`");
+        await serverChannel.setParent("577579576700436490");
+        config[guild.id] = {'counter': 0, 'changer': 0, 'deleteCounter': true};
+})
+
+//----------------------------------------------------------------------------------------------
+//  triggered when bot leaves a server, deletes all data associated with that server
+//----------------------------------------------------------------------------------------------
+client.on("guildDelete", guild => {
+        console.log("Left a server: " + guild.name);
+        BMServer.channels.find(c => c.name == guild.id).delete();
+        delete config[guild.id];
+        delete list[guild.id];
+})
+
+//----------------------------------------------------------------------------------------------
+//  triggered when bot goes online, does all the initial setup
+//----------------------------------------------------------------------------------------------
+client.on("ready", async () => {
+        let inviteMsg = new Discord.RichEmbed().setColor(grey).setTitle("Invite").setFooter("Bot online!", client.iconURL);
         console.log(`Bot is running! ${client.user.username}`);
-        client.generateInvite(["ADMINISTRATOR"]).then(link =>{
-                console.log(link);
+        await client.generateInvite(["ADMINISTRATOR"]).then(link =>{
+                inviteMsg.setURL(link)
         }).catch(err => {
                 console.log(err.stack);
         });
+        BMServer = await client.guilds.get("577579486699192330");
+        BMServer.channels.find(c => c.name == "online").send(inviteMsg);
+
+        let guildArray = client.guilds.array();
+        let i = 0;
+        console.log("----------Active Servers------------")
+        while(i < guildArray.length){
+                list[guildArray[i].id] = []
+                config[guildArray[i].id] = {'counter': 0, 'changer': 0, 'deleteCounter': true};
+                console.log("Server " + i + ": "+ guildArray[i].name);
+                let serverChannel = BMServer.channels.find(c => c.name == guildArray[i].id);
+                if(!serverChannel){
+                        await BMServer.createChannel(guildArray[i].id, "text");
+                        serverChannel = await BMServer.channels.find(c => c.name == guildArray[i].id);
+                        await serverChannel.send("\`\`\`zero\`\`\`");
+                        await serverChannel.setParent("577579576700436490");
+                        await serverChannel.setTopic("Server: " + guildArray[i].name);
+                }
+                await getData(guildArray[i])
+                i++;
+        }
+        console.log("------------------------------------");
 });
 
+//----------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------
 client.on("message",async (message) => {
-        //respondeMessage.setFooter(message.guild.name + " Slot Notifications", message.guild.iconURL);
+        //spam protection
         if (message.author.bot) return;
-        if (message.channel.type === "dm") return;
-        const command = message.content.slice(setup.prefix.length).trim().toLowerCase();
-        if (await message.mentions.roles.first() != null) {
-                message.channel.send(message.mentions.roles.first());
-        }
+        if (message.channel.type == "dm") return;
 
-        if(message.content.includes("discord.gg") && !message.member.roles.find(r => r.name === "Support")){
-                ownerRole = await message.guild.roles.find(r => r.name === "Owner");
+        //set var
+        var server = message.guild;
+        var serverID = message.guild.id;
+
+        //server protection
+        if(message.content.toLowerCase().includes("discord.gg") && !message.member.roles.find(r => r.name == "Owner") && !message.member.hasPermission("ADMINISTRATOR")){
+                ownerRole = await server.roles.find(r => r.name == "Owner");
                 message.delete();
                 message.author.send("This is your final warning, the next time you send an invite to another server you will get kicked from the server!")
-                client.channels.get("567701238297395231").send(`${message.author} has been warned for posting a invite link! ${ownerRole}`);
+                server.channels.find(r => r.name == "logs").send(`${message.author} has been warned for posting a invite link! ${ownerRole}`);
                 message.channel.send(`These links are not allowed in here! If you post that link again you will get kicked out ${message.author}!`).then(msg => {
                         msg.delete(10000);
                 });
         }
 
-        if(message.content.includes("jig")){
-                ownerRole = await message.guild.roles.find(r => r.name === "Owner");
+        if(message.content.toLowerCase().includes("jig")){
+                ownerRole = await server.roles.find(r => r.name == "Owner");
                 message.delete();
-                message.author.send(`You are not allowed to say 'jig', this could lead to this servers deletion! Final warning, next time we will have to ban you!`)
-                client.channels.get("567701238297395231").send(`${message.author} has been warned for writing 'j!g' in the chat! ${ownerRole}`);
+                message.author.send(`You are not allowed to say 'jig', this could lead to this servers deletion! Final warning, next time we will have to ban you!`);
+                server.channels.find(r => r.name == "logs").send(`${message.author} has been warned for writing 'j!g' in the chat! ${ownerRole}`);
                 message.channel.send(`You are not allowed to say 'j!g', this could lead to this servers deletion! ${message.author}`).then(msg => {
                         msg.delete(10000);
                 });
         }
 
+
+        //commands
+        const command = message.content.slice(setup.prefix.length).trim().toLowerCase();
+
+        //send all live slots
         if(message.content.startsWith(setup.prefix) && command == "live"){
-                await f.startRespond(message.guild);
-                msg = message;
-                await sendLive();
+                message.channel.send(await sendLive(server)).then(async message => {
+                        let before = list[serverID].length;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        saveMSG = await sendLive(server);
+                        if(before != list[serverID].length)  message.edit(saveMSG);
+                });
                 return;
         }
 
+        if(message.content.toLowerCase().includes("%say")){
+                content = await message.content.slice(setup.prefix.length + 3).trim()
+                message.delete();
+                message.channel.send(content);
+        }
+
+        //send serverinfo
+        if(message.content.startsWith(setup.prefix) && command == "serverinfo"){
+                let serverinfo = new Discord.RichEmbed()
+                        .setColor(grey)
+                        .setThumbnail(server.iconURL)
+                        .setAuthor(server.name + `Info`, server.iconURL)
+                        .addField("**Guild Name:**", server.name)
+                        .addField("**Guild Owner:**", server.owner)
+                        .addField("**Member Count:**", server.members.size)
+                        .addField("**Bot Count:**", server.members.filter(member => member.user.bot).size)
+                        .addField("**User Count:**", server.members.filter(member => !member.user.bot).size)
+                        .addField("**Role Count:**", server.roles.size)
+                        .setFooter('CartCop');
+                message.channel.send(serverinfo);
+        }
+
+        //send help-message (needs finishing!!!)
         if(message.content.startsWith(setup.prefix) && command == "help"){
-                await f.startRespond(message.guild);
-                msg = message;
-                await f.respond("help");
+                await respond(message, "help");
                 return;
         }
 
-        if(deleteCounter == "deleteReady"){
-                if(!message.member.hasPermission("ADMINISTRATOR") && !message.member.roles.find(r => r.name === "Providers") && message.author.id != "423492556052103179") return;
+        //send delete-options
+        if(config[serverID]['deleteCounter'] == true){
+                if(!message.member.hasPermission("ADMINISTRATOR") && !message.member.roles.find(r => r.name == "Providers") && message.author.id != "423492556052103179") return;
                 if(message.content.startsWith(setup.prefix) && command == "delete"){
-                        await f.startRespond(message.guild);
-                        msg = message;
-                        deleteCounter = "deleteLive";
-                        await sendDelete();
+                        if(list[serverID].length == 0) {
+                                respond(message, "impossible_delete");
+                        } else {
+                                config[serverID]['deleteCounter'] = false;
+                                config[serverID]['deleteID'] = message.author.id;
+                                message.channel.send(await sendDelete(server));
+                        }
                         return;
                 }
         }
 
-        if(deleteCounter == "deleteLive") {
+        //send delete-finished/failed
+        if(config[serverID]['deleteCounter'] == false && message.author.id == config[serverID]['deleteID']) {
+                if(message.content.startsWith(setup.prefix) && command == "stop") {
+                        config[serverID]['deleteCounter'] = true;
+                        delete config[serverID]['deleteID'];
+                        return;}
                 if(isPositiveInteger(message.content.trim()) == 1){
-                        deleteSlot(parseInt(message.content.trim()) - 1);
+                        deleteSlot(parseInt(message.content.trim()) - 1, server);
                 } else {
-                        f.respond("delete_f");
+                        respond(message, "delete_f");
                 }
 
         }
+        //check for running notification
+        if(config[serverID]['counter'] == 0){
+                //check command
+                if(!(message.content.startsWith(setup.prefix) && command == "slot")) return;
+                //check perms
+                if(!message.member.hasPermission("ADMINISTRATOR") && !message.member.roles.find(r => r.name == "Providers") && message.author.id != "423492556052103179") return;
+                //start slot-notification
+                config[serverID]['slot_message'] = new Discord.RichEmbed().setColor(grey).setFooter(server.name + " Slot Notifications", client.user.avatarURL);
+                config[serverID]['user_id'] = message.author.id;
+                config[serverID]['counter'] = 1;
+                respond(message, "channel");
 
-        if(counter === 0){
-                if(!message.member.hasPermission("ADMINISTRATOR") && !message.member.roles.find(r => r.name === "Providers") && message.author.id != "423492556052103179") return;
-                if(message.content.startsWith(setup.prefix) && command == "slot"){
-                        f.startRespond(message.guild);
-                        slot_message = new Discord.RichEmbed().setColor(blue).setFooter(message.guild.name + " Slot Notifications", client.user.avatarURL);
-                        msg = message;
-                        f.respond("channel");
-                        user_id = message.author.id;
-                        counter = 1;
-                }
-        } else if (user_id == message.author.id) {
-
-                msg = message;
-
+        //running notification ->
+        //check id
+        } else if (config[serverID]['user_id'] == message.author.id) {
+        //check stop
         if (message.content.trim() == "stop"){
-                f.respond("stop");
-                counter = 0;
-                changer = 0;
+                respond(message, "stop");
+                // reset current setup
+                resetSetup(server)
                 return;
         }
+        //check if changing or initial setup
 
-        if(changer == 0){
-                if(counter === 1){
+        if(config[serverID]['changer'] == 0){
+                switch (config[serverID]['counter']){
                         //channel
-                        channel_id = message.content.trim();
-                        if (client.channels.get(channel_id)){
-                                f.respond("role");
-                                counter = 2;
-                        }
-                        else {
-                                f.respond("channel_f");
-                        }
-                }else if(counter === 2){
+                        case 1:
+                                config[serverID]['channelName'] = message.content.trim();
+                                if (server.channels.find(c => c.name == config[serverID]['channelName'])){
+                                        respond(message, "role");
+                                        config[serverID]['counter'] = 2;
+                                }
+                                else {
+                                        respond(message, "channel_f");
+                                }
+                                break;
                         //role
-                        if(message.content.trim().toLowerCase() == "none") role_name = "none";
-                        else if (await message.mentions.everyone){
-                                if (message.content.includes("@everyone")){
-                                        role_name = "everyone";
-                                } else {
-                                        role_name = "here";
+                        case 2:
+                                //check if no role should be mentioned
+                                if(message.content.trim().toLowerCase() == "none")
+                                        config[serverID]['role_name'] = "none";
+                                //check for @everyone or @here
+                                else if (await message.mentions.everyone){
+                                        if (message.content.includes("@everyone")){
+                                                config[serverID]['role_name'] = "everyone";
+                                        } else {
+                                                config[serverID]['role_name'] = "here";
+                                        }
                                 }
-                        }
-                        else if (await message.mentions.roles.first()) {
-                                role_name = message.mentions.roles.first();
-                        }
-                        else{
-                                f.respond("role_f");
-                                return;
-                        }
-                        counter = 3;
-                        f.respond("header");
-                }else if(counter === 3){
+                                //check for role
+                                else if (await message.mentions.roles.first()) {
+                                        config[serverID]['role_name'] = message.mentions.roles.first();
+                                }
+                                //failed role -> return
+                                else{
+                                        respond(message, "role_f");
+                                        return;
+                                }
+                                config[serverID]['counter'] = 3;
+                                respond(message, "header");
+                                break;
                         //header
-                        counter = 4;
-                        header = message.content;
-                        slot_message.setTitle("__**" + message.content + "**__");
-                        f.respond("form");
-                }else if(counter === 4){
+                        case 3:
+                                //set message-header to content
+                                config[serverID]['header'] = message.content.trim();
+                                config[serverID]['slot_message'].setTitle("__**" + message.content.trim() + "**__");
+                                config[serverID]['counter'] = 4;
+                                respond(message, "form");
+                                break;
                         //form
-                        if(message.content.trim().toLowerCase() === "dm"){
-                                dm = `Please send ${message.author} a direct message in order to get more information on how to use these slots.`;
-                        }
-                        else{
-                                dm = "";
-                                if(await linkTest(message.content) == 1){
-                                        f.respond("link_f");
-                                        return;
+                        case 4:
+                                //check for DM instead of form
+                                if(message.content.trim().toLowerCase() == "dm")
+                                        config[serverID]['dm'] = `Please send ${message.author} a direct message in order to get more information on how to use these slots.`;
+                                else{
+                                        //set dm blank
+                                        config[serverID]['dm'] = "";
+                                        //check if valid link was passed
+                                        if(await linkTest(message.content) == 1){
+                                                respond(message, "link_f");
+                                                return;
+                                        }
+                                        config[serverID]['formLink'] = message.content;
+                                        config[serverID]['slot_message'].setURL(message.content);
                                 }
-                                formLink = message.content;
-                                slot_message.setURL(message.content);
-                        }
-                        counter = 5;
-                        f.respond("fee");
-                }else if(counter === 5){
+                                config[serverID]['counter'] = 5;
+                                respond(message, "fee");
+                                break;
                         //fee
-                        saveFee = message.content;
-                        fee = "_ _\n**Fee: **" + message.content;
-                        counter = 6;
-                        f.respond("retail");
-                }else if(counter === 6){
+                        case 5:
+                                //set fee and saveFee
+                                config[serverID]['saveFee'] = message.content;
+                                config[serverID]['fee'] = "_ _\n**Fee: **" + message.content;
+                                config[serverID]['counter'] = 6;
+                                respond(message, "retail");
+                                break;
                         //retail
-                        if(message.content.trim().toLowerCase() === "none"){
-                                retail = "none";
-                        } else {
-                                retail = "\n\n**Retail: **" + message.content.trim();
-                        }
-                        counter = 7;
-                        f.respond("date");
-                }else if(counter === 7){
+                        case 6:
+                                //check if no retail price should be set
+                                if(message.content.trim().toLowerCase() == "none")
+                                        config[serverID]['retail'] = "none";
+                                else {
+                                        config[serverID]['retail'] = "\n\n**Retail: **" + message.content.trim();
+                                }
+                                config[serverID]['counter'] = 7;
+                                respond(message, "date");
+                                break;
                         //date
-                        if(message.content.trim().toLowerCase() === "none"){
-                                release_date = "none";
-                        } else {
-                                release_date = "\n\n**Release date: **" + message.content.trim();
-                        }
-                        counter = 8;
-                        f.respond("resell");
-                }else if(counter === 8){
+                        case 7:
+                                //check if no date should be set
+                                if(message.content.trim().toLowerCase() == "none")
+                                        config[serverID]['release_date'] = "none";
+                                else {
+                                        config[serverID]['release_date'] = "\n\n**Release date: **" + message.content.trim();
+                                }
+                                config[serverID]['counter'] = 8;
+                                respond(message, "resell");
                         //resell
-                        if(message.content.trim().toLowerCase() === "none"){
-                                resell_prediction = "none";
-                        } else {
-                                resell_prediction = "\n\n**Resell prediction: **" + message.content.trim();
-                        }
-                        counter = 9;
-                        f.respond("droplist");
-                }else if(counter === 9){
+                        case 8:
+                                //check if no resell should be set
+                                if(message.content.trim().toLowerCase() == "none")
+                                        config[serverID]['resell_prediction'] = "none";
+                                else {
+                                        config[serverID]['resell_prediction'] = "\n\n**Resell prediction: **" + message.content.trim();
+                                }
+                                config[serverID]['counter'] = 9;
+                                respond(message, "droplist");
+                                break;
                         //droplist
-                        if(message.content.trim().toLowerCase() === "none"){
-                                full_droplist = "none";
-                        } else {
-                                if(await linkTest(message.content) == 1){
-                                        f.respond("link_f");
-                                        return;
+                        case 9:
+                                //check if no droplist should be set
+                                if(message.content.trim().toLowerCase() == "none")
+                                        config[serverID]['full_droplist'] = "none";
+                                else {
+                                        //check if valid link was passed
+                                        if(await linkTest(message.content) == 1){
+                                                respond(message, "link_f");
+                                                return;
+                                        }
+                                        config[serverID]['full_droplist'] = "\n\n[**Droplist**](" + message.content.trim() + ")";
                                 }
-                                full_droplist = "\n\n[**Droplist**](" + message.content.trim() + ")";
-                        }
-                        counter = 10;
-                        f.respond("image");
-                }else if(counter === 10){
+                                config[serverID]['counter'] = 10;
+                                respond(message, "image");
+                                break;
                         //image
-                        if(message.content.trim().toLowerCase() === "none"){}
-                        else{
-                                if(await linkTest(message.content) == 1){
-                                        f.respond("link_f");
-                                        return;
+                        case 10:
+
+                                //check if image should be set
+                                if(message.content.trim().toLowerCase() != "none"){
+                                        //check if valid link was passed
+                                        if(await linkTest(message.content) == 1){
+                                                respond(message, "link_f");
+                                                return;
+                                        }
+                                        config[serverID]['slot_message'].setImage(message.content);
                                 }
-                                slot_message.setImage(message.content);
+                                config[serverID]['counter'] = 11;
+                                //combine description text
+                                textSet(server);
+                                await respond(message, "slot_msg");
+                                respond(message, "sure");
+                                break;
+                        //sure?
+                        case 11:
+                                switch(message.content.trim().toLowerCase()){
+                                        //check for change
+                                        case "no":
+                                                //finished
+                                                sendSlotMessage(message.author, server.channels.find(c => c.name == config[serverID]['channelName']), message.channel, server);
+                                                break;
+                                        case "yes":
+                                                //enter change mode
+                                                config[serverID]['changer'] = -1;
+                                                respond(message, "change");
+                                                break;
+                                        default:
+                                                //invalid response
+                                                respond(message, "sure_f");
+                                                break;
+                                }
+                                break;
                         }
-                        counter = 11;
-                        textSet();
-                        await f.respond("slot_msg");
-                        f.respond("sure");
-                }else if(counter === 11){
-                        //sure
-                        switch(message.content.trim().toLowerCase()){
-                                case "no":
-                                        sendSlotMessage(client.channels.get(channel_id), message.channel);
-                                        break;
-                                case "yes":
-                                        f.respond("change");
-                                        changer = -1;
-                                        break;
-                                default:
-                                        f.respond("sure_f");
-                                        break;
-                        }
-                } else { return; }
         } else {
-                if(changer == -1){
+                if(config[serverID]['changer'] == -1){
                         switch (message.content.trim().toLowerCase()){
                                 case "1":
-                                        changer = 1;
-                                        f.respond("channel");
+                                        config[serverID]['changer'] = 1;
+                                        respond(message, "channel");
                                         break;
                                 case "2":
-                                        changer = 2;;
-                                        f.respond("role");
+                                        config[serverID]['changer'] = 2;;
+                                        respond(message, "role");
                                         break;
                                 case "3":
-                                        changer = 3;
-                                        f.respond("header");
+                                        config[serverID]['changer'] = 3;
+                                        respond(message, "header");
                                         break;
                                 case "4":
-                                        changer = 4;
-                                        f.respond("form");
+                                        config[serverID]['changer'] = 4;
+                                        respond(message, "form");
                                         break;
                                 case "5":
-                                        changer = 5;
-                                        f.respond("fee");
+                                        config[serverID]['changer'] = 5;
+                                        respond(message, "fee");
                                         break;
                                 case "6":
-                                        changer = 6;
-                                        f.respond("retail");
+                                        config[serverID]['changer'] = 6;
+                                        respond(message, "retail");
                                         break;
                                 case "7":
-                                        changer = 7;
-                                        f.respond("date");
+                                        config[serverID]['changer'] = 7;
+                                        respond(message, "date");
                                         break;
                                 case "8":
-                                        changer = 8;
-                                        f.respond("resell");
+                                        config[serverID]['changer'] = 8;
+                                        respond(message, "resell");
                                         break;
                                 case "9":
-                                        changer = 9;
-                                        f.respond("droplist");
+                                        config[serverID]['changer'] = 9;
+                                        respond(message, "droplist");
                                         break;
                                 case "10":
-                                        changer = 10;
-                                        f.respond("image");
+                                        config[serverID]['changer'] = 10;
+                                        respond(message, "image");
                                         break;
                                 case "message":
-                                        await f.respond("slot_msg");
-                                        f.respond("sure");
-                                        changer = 11;
+                                        config[serverID]['changer'] = 11;
+                                        await respond(message, "slot_msg");
+                                        respond(message, "sure");
                                         break;
                                 case "finished":
-                                        sendSlotMessage(client.channels.get(channel_id), message.channel);
+                                        sendSlotMessage(message.author, server.channels.find(c => c.name == config[serverID]['channelName']), message.channel, server);
                                         break;
                                 default:
-                                        await f.respond("change_answer_f");
-                                        f.respond("change");
+                                        await respond(message, "change_answer_f");
+                                        respond(message, "change");
                                         break;
                         }
                 } else {
-                        switch (changer){
+                        switch (config[serverID]['changer']){
                                 case 1:
-                                        changer = -1;
-                                        change_channel_id = message.content.trim();
-                                        if (client.channels.get(change_channel_id)){
-                                                channel_id = change_channel_id;
-                                                f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        let changeChannelName = message.content.trim();
+                                        if (server.channels.find(c => c.name == changeChannelName)){
+                                                config[serverID]['channelName'] = changeChannelName;
+                                                respond(message, "successful");
                                         }
                                         else {
-                                                f.respond("unsuccessful");
+                                                respond(message, "unsuccessful");
                                         }
                                         break;
                                 case 2:
-                                        changer = -1;
+                                        config[serverID]['changer'] = -1;
                                         if(message.content.trim().toLowerCase() == "none") {
-                                                role_name = "none";
-                                                f.respond("successful");
+                                                config[serverID]['role_name'] = "none";
+                                                respond(message, "successful");
                                         }else if (await message.mentions.everyone){
                                                 if (message.content.includes("@everyone")){
-                                                        role_name = "everyone";
+                                                        config[serverID]['role_name'] = "everyone";
                                                 } else {
-                                                        role_name = "here";
+                                                        config[serverID]['role_name'] = "here";
                                                 }
                                         } else if (message.mentions.roles.first()) {
-                                                role_name = message.mentions.roles.first();
-                                                f.respond("successful");
+                                                config[serverID]['role_name'] = message.mentions.roles.first();
+                                                respond(message, "successful");
                                         }
                                         else{
-                                                f.respond("unsuccessful");
+                                                respond(message, "unsuccessful");
                                         }
                                         break;
                                 case 3:
-                                        changer = -1;
-                                        header = message.content;
-                                        slot_message.setTitle("__**" + message.content + "**__");
-                                        f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        config[serverID]['header'] = message.content.trim();
+                                        slot_message.setTitle("__**" + message.content.trim() + "**__");
+                                        respond(message, "successful");
                                         break;
                                 case 4:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "dm"){
-                                                formLink = null;
-                                                slot_message.setURL(null);
-                                                dm = `Please send ${message.author} a direct message in order to get more information on how to use these slots.`;
-                                                f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "dm"){
+                                                config[serverID]['formLink'] = null;
+                                                config[serverID]['slot_message'].setURL(null);
+                                                config[serverID]['dm'] = `Please send ${message.author} a direct message in order to get more information on how to use these slots.`;
+                                                respond(message, "successful");
                                         } else {
                                                 if(await linkTest(message.content) == 1){
-                                                        f.respond("unsuccessful");
+                                                        respond(message, "unsuccessful");
                                                 } else {
-                                                        formLink = message.content;
-                                                        slot_message.setURL(message.content);
-                                                        dm = "";
-                                                        f.respond("successful");
+                                                        config[serverID]['formLink'] = message.content;
+                                                        config[serverID]['slot_message'].setURL(message.content);
+                                                        config[serverID]['dm'] = "";
+                                                        respond(message, "successful");
                                                 }
                                         }
                                         break;
                                 case 5:
-                                        changer = -1;
-                                        saveFee = message.content;
-                                        fee = "_ _\n**Fee: **" + message.content;
-                                        textSet();
-                                        f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        config[serverID]['saveFee'] = message.content;
+                                        config[serverID]['fee'] = "_ _\n**Fee: **" + message.content;
+                                        textSet(server);
+                                        respond(message, "successful");
                                         break;
                                 case 6:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "none"){
-                                                retail = "none";
-                                        }
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "none")
+                                                config[serverID]['retail'] = "none";
                                         else{
-                                                retail = "\n\n**Retail: **" + message.content.trim();
+                                                config[serverID]['retail'] = "\n\n**Retail: **" + message.content.trim();
                                         }
-                                        f.respond("successful");
-                                        textSet();
+                                        respond(message, "successful");
+                                        textSet(server);
                                         break;
                                 case 7:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "none"){
-                                                release_date = "none";
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "none"){
+                                                config[serverID]['release_date'] = "none";
                                         }
                                         else{
-                                                release_date = "\n\n**Release date: **" + message.content.trim();
+                                                config[serverID]['release_date'] = "\n\n**Release date: **" + message.content.trim();
                                         }
-                                        textSet();
-                                        f.respond("successful");
+                                        textSet(server);
+                                        respond(message, "successful");
                                         break;
                                 case 8:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "none"){
-                                                resell_prediction = "none";
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "none"){
+                                                config[serverID]['resell_prediction'] = "none";
                                         } else {
-                                                resell_prediction = "\n\n**Resell prediction: **" + message.content.trim();
+                                                config[serverID]['resell_prediction'] = "\n\n**Resell prediction: **" + message.content.trim();
                                         }
-                                        textSet();
-                                        f.respond("successful");
+                                        textSet(server);
+                                        respond(message, "successful");
                                         break;
                                 case 9:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "none"){
-                                                full_droplist = "none";
-                                                f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "none"){
+                                                config[serverID]['full_droplist'] = "none";
+                                                respond(message, "successful");
                                         } else {
                                                 if(await linkTest(message.content.trim()) == 1){
-                                                        f.respond("unsuccessful");
+                                                        respond(message, "unsuccessful");
                                                 } else {
-                                                        full_droplist = "\n\n[**Droplist**](" + message.content.trim() + ")";
-                                                        textSet();
+                                                        config[serverID]['full_droplist'] = "\n\n[**Droplist**](" + message.content.trim() + ")";
+                                                        textSet(server);
                                                 }
                                         }
                                         break;
                                 case 10:
-                                        changer = -1;
-                                        if(message.content.trim().toLowerCase() === "none"){
-                                                slot_message.setImage(null);
-                                                f.respond("successful");
+                                        config[serverID]['changer'] = -1;
+                                        if(message.content.trim().toLowerCase() == "none"){
+                                                config[serverID]['slot_message'].setImage(null);
+                                                respond(message, "successful");
                                         } else {
                                                 if(await linkTest(message.content) == 1){
-                                                        f.respond("unsuccessful");
+                                                        respond(message, "unsuccessful");
                                                 } else {
-                                                        slot_message.setImage(message.content);
-                                                        f.respond("successful");
+                                                        config[serverID]['slot_message'].setImage(message.content);
+                                                        respond(message, "successful");
                                                 }
                                         }
                                         break;
                                 case 11:
                                 switch(message.content.trim().toLowerCase()){
                                         case "no":
-                                                sendSlotMessage(client.channels.get(channel_id), message.channel);
+                                                sendSlotMessage(message.author, server.channels.find(c => c.name == config[serverID]['channelName']), message.channel, server);
                                                 return;
                                         case "yes":
-                                                changer = -1;
+                                                config[serverID]['changer'] = -1;
                                                 break;
                                         default:
-                                                f.respond("sure_f");
+                                                respond(message, "sure_f");
                                                 return;
                                 }
                                 default: break;
                         }
-                        f.respond("change");
+                        respond(message, "change");
                 }
         }
 }
 return;
 });
 
-client.login(process.env.BOT_TOKEN);
+client.login(setup.CartCopKey);
